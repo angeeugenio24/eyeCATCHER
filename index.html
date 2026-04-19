@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eyeCATCHER</title>
+    <script type="module" src="/src/main.ts" defer></script>
+    <script>
+      // Apply saved theme before render to prevent flash
+      (function() {
+        var theme = localStorage.getItem('eyecatcher-theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+  </head>
+
+  <body>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="screen active">
+      <div class="splash-decoration top-right">
+        <svg viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M-10,30 Q55,10 110,30 T230,30" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.7"/>
+          <path d="M-10,50 Q55,30 110,50 T230,50" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.55"/>
+          <path d="M-10,70 Q55,50 110,70 T230,70" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.4"/>
+          <path d="M-10,90 Q55,70 110,90 T230,90" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.3"/>
+          <path d="M-10,110 Q55,90 110,110 T230,110" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.22"/>
+        </svg>
+      </div>
+      <div class="splash-decoration bottom-left">
+        <svg viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M-10,30 Q55,50 110,30 T230,30" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.22"/>
+          <path d="M-10,50 Q55,70 110,50 T230,50" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.3"/>
+          <path d="M-10,70 Q55,90 110,70 T230,70" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.4"/>
+          <path d="M-10,90 Q55,110 110,90 T230,90" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.55"/>
+          <path d="M-10,110 Q55,130 110,110 T230,110" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.7"/>
+        </svg>
+      </div>
+      <div class="splash-content">
+        <div class="splash-logo">
+          <h1 class="app-title elegant"><span>eyeCATCHER</span></h1>
+          <p class="app-subtitle">a persistent 20-20-20<br/>eye tracker</p>
+        </div>
+        <div class="splash-auth-buttons">
+          <button id="splash-login-btn" class="primary-btn wide">Login</button>
+          <p class="auth-toggle muted">
+            don't have an account? <span id="splash-signup-btn" class="link">sign up</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auth Screen (Login / Register) -->
+    <div id="auth-screen" class="screen">
+      <div class="auth-content">
+        <h1 id="auth-heading" class="auth-heading">Login</h1>
+
+        <div class="auth-form">
+          <div id="auth-name-group" class="form-group">
+            <label for="auth-name">Username</label>
+            <input type="text" id="auth-name" placeholder="Your username" autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label for="auth-email">Email</label>
+            <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="auth-password">Password</label>
+            <input type="password" id="auth-password" placeholder="Min 6 characters" autocomplete="current-password" />
+          </div>
+          <div id="auth-confirm-group" class="form-group hidden">
+            <label for="auth-confirm-password">Confirm Password</label>
+            <input type="password" id="auth-confirm-password" placeholder="Confirm password" autocomplete="new-password" />
+          </div>
+
+          <div id="auth-extra-row" class="auth-extra-row">
+            <label class="remember-me">
+              <input type="checkbox" id="auth-remember" />
+              <span>Remember me</span>
+            </label>
+            <span id="auth-forgot" class="link muted">Forgot Password?</span>
+          </div>
+
+          <div id="auth-error" class="auth-error hidden"></div>
+
+          <button id="auth-signin-btn" class="primary-btn wide">Login</button>
+          <button id="auth-signup-btn" class="primary-btn wide hidden">Sign up</button>
+
+          <p id="auth-toggle-mode" class="auth-toggle muted">
+            don't have an account? <span class="link">sign up</span>
+          </p>
+        </div>
+
+        <button id="auth-back-btn" class="back-btn" title="Back">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 3L5 7l4 4" stroke="var(--bg-primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Profile Setup Screen -->
+    <div id="profile-setup-screen" class="screen">
+      <div class="auth-content">
+        <h1 class="app-title small">eyeCATCHER</h1>
+        <p class="app-subtitle small">Set up your profile</p>
+
+        <div class="auth-form">
+          <div class="form-group">
+            <label for="profile-age">Age</label>
+            <input type="number" id="profile-age" placeholder="25" min="1" max="120" />
+          </div>
+          <div class="form-group">
+            <label for="profile-screen-hours">Daily Screen Hours</label>
+            <input type="number" id="profile-screen-hours" placeholder="8" min="1" max="24" step="0.5" />
+          </div>
+          <div class="form-group">
+            <label for="profile-work-type">Work Type</label>
+            <select id="profile-work-type">
+              <option value="student">Student</option>
+              <option value="office_worker">Office Worker</option>
+              <option value="general" selected>General</option>
+            </select>
+          </div>
+
+          <div id="profile-error" class="auth-error hidden"></div>
+
+          <button id="profile-save-btn" class="primary-btn">Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timer Screen -->
+    <div id="timer-screen" class="screen">
+      <div class="timer-content">
+        <div class="timer-header">
+          <h2 id="timer-app-title" class="timer-title">eyeCATCHER</h2>
+          <button id="theme-toggle-btn" class="theme-toggle" title="Toggle light/dark mode">
+            <svg class="theme-icon sun-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="4" fill="var(--accent-color)"/>
+              <line x1="10" y1="1" x2="10" y2="4" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="10" y1="16" x2="10" y2="19" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="1" y1="10" x2="4" y2="10" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="16" y1="10" x2="19" y2="10" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="3.5" y1="3.5" x2="5.6" y2="5.6" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="14.4" y1="14.4" x2="16.5" y2="16.5" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="3.5" y1="16.5" x2="5.6" y2="14.4" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="14.4" y1="5.6" x2="16.5" y2="3.5" stroke="var(--accent-color)" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <svg class="theme-icon moon-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M17.3 12.3A7.5 7.5 0 017.7 2.7 8 8 0 1017.3 12.3z" fill="var(--accent-color)"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Idle state: show start button -->
+        <div id="timer-idle" class="timer-state">
+          <div class="countdown-display">
+            <span id="countdown-number">20</span>
+          </div>
+          <button id="start-timer-btn" class="start-btn">
+            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="40" cy="40" r="38" stroke="var(--accent-color, #b8954a)" stroke-width="2" fill="none"/>
+                <polygon points="32,24 58,40 32,56" fill="var(--start-btn-fill, #1a1a1a)"/>
+            </svg>
+            <span class="start-label">start timer</span>
+          </button>
+        </div>
+
+        <!-- Running state: scrolling minute timeline -->
+        <div id="timer-running" class="timer-state hidden">
+          <div class="minute-scroll-container">
+            <div class="minute-scroll-track">
+              <div class="minute-dots"></div>
+              <div id="minute-scroll-list" class="minute-scroll-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="timer-bottom-actions">
+          <button id="terminate-btn" class="action-btn hidden" title="Terminate">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <line x1="7" y1="7" x2="21" y2="21" stroke="var(--accent-color, #b8954a)" stroke-width="2" stroke-linecap="round"/>
+              <line x1="21" y1="7" x2="7" y2="21" stroke="var(--accent-color, #b8954a)" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>terminate</span>
+          </button>
+        </div>
+
+        <div class="timer-nav-row">
+          <button id="go-stats-btn" class="nav-btn">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="8" stroke="var(--accent-color, #b8954a)" stroke-width="1.5" fill="none"/>
+              <circle cx="10" cy="10" r="3" fill="var(--accent-color, #b8954a)"/>
+            </svg>
+            <span>stats</span>
+          </button>
+          <button id="go-settings-btn" class="nav-btn">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="7" stroke="var(--accent-color, #b8954a)" stroke-width="1.5" fill="none"/>
+              <circle cx="10" cy="10" r="2" fill="var(--accent-color, #b8954a)"/>
+              <line x1="10" y1="1" x2="10" y2="4" stroke="var(--accent-color, #b8954a)" stroke-width="1.5"/>
+              <line x1="10" y1="16" x2="10" y2="19" stroke="var(--accent-color, #b8954a)" stroke-width="1.5"/>
+            </svg>
+            <span>settings</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Screen -->
+    <div id="stats-screen" class="screen">
+      <div class="stats-content">
+        <div class="stats-tabs">
+          <button id="tab-left" class="tab-btn">&lt; Weekly</button>
+          <button id="tab-right" class="tab-btn">Monthly &gt;</button>
+        </div>
+        <h2 class="stats-title">Todays Record</h2>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label"># of Successful Sessions</span>
+            <span id="stat-successful" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label"># of Terminations</span>
+            <span id="stat-terminations" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label"># of Times Paused</span>
+            <span id="stat-paused" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total Screen Time</span>
+            <span id="stat-screen-time" class="stat-value">0h 0m</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Breaks Taken</span>
+            <span id="stat-breaks-taken" class="stat-value">0</span>
+          </div>
+        </div>
+
+        <button id="go-timer-btn" class="nav-btn bottom-nav">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="8" stroke="var(--accent-color, #b8954a)" stroke-width="1.5" fill="none"/>
+            <circle cx="10" cy="10" r="3" fill="var(--accent-color, #b8954a)"/>
+          </svg>
+          <span>return to timer</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="screen">
+      <div class="settings-content">
+        <h2 class="settings-title">Settings</h2>
+
+        <div class="settings-form">
+          <div class="form-group">
+            <label for="settings-name">Display Name</label>
+            <input type="text" id="settings-name" />
+          </div>
+          <div class="form-group">
+            <label for="settings-age">Age</label>
+            <input type="number" id="settings-age" min="1" max="120" />
+          </div>
+          <div class="form-group">
+            <label for="settings-screen-hours">Daily Screen Hours</label>
+            <input type="number" id="settings-screen-hours" min="1" max="24" step="0.5" />
+          </div>
+          <div class="form-group">
+            <label for="settings-work-type">Work Type</label>
+            <select id="settings-work-type">
+              <option value="student">Student</option>
+              <option value="office_worker">Office Worker</option>
+              <option value="general">General</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="settings-break-interval">Break Interval (minutes)</label>
+            <input type="number" id="settings-break-interval" min="5" max="120" />
+          </div>
+          <div class="form-group">
+            <label for="settings-break-duration">Break Duration (seconds)</label>
+            <input type="number" id="settings-break-duration" min="5" max="300" />
+          </div>
+          <div class="form-group">
+            <label for="settings-notification-mode">Notification Mode</label>
+            <select id="settings-notification-mode">
+              <option value="light">Light (minimal)</option>
+              <option value="moderate">Moderate (standard)</option>
+              <option value="strict">Strict (aggressive)</option>
+            </select>
+          </div>
+
+          <button id="settings-save-btn" class="primary-btn">Save Settings</button>
+          <p id="settings-saved-msg" class="success-msg hidden">Settings saved!</p>
+        </div>
+
+        <div class="settings-actions">
+          <button id="settings-back-btn" class="nav-btn">Back to Timer</button>
+          <button id="settings-logout-btn" class="nav-btn danger">Log Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Screen (Hidden - accessible via 5x rapid click on title) -->
+    <div id="admin-screen" class="screen">
+      <div class="admin-content">
+        <h2 class="admin-title">Admin Panel</h2>
+
+        <div class="admin-tabs">
+          <button class="admin-tab-btn active" data-admin-tab="admin-users-tab">Users</button>
+          <button class="admin-tab-btn" data-admin-tab="admin-analytics-tab">Analytics</button>
+          <button class="admin-tab-btn" data-admin-tab="admin-config-tab">Config</button>
+          <button class="admin-tab-btn" data-admin-tab="admin-tips-tab">Tips</button>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="admin-users-tab" class="admin-tab-content">
+          <h3>User Management</h3>
+          <div id="admin-user-list" class="admin-list"></div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="admin-analytics-tab" class="admin-tab-content hidden">
+          <h3>Usage Analytics</h3>
+          <div class="analytics-grid">
+            <div class="analytics-card">
+              <span class="analytics-label">Total Users</span>
+              <span id="analytics-total-users" class="analytics-value">0</span>
+            </div>
+            <div class="analytics-card">
+              <span class="analytics-label">Total Sessions</span>
+              <span id="analytics-total-sessions" class="analytics-value">0</span>
+            </div>
+            <div class="analytics-card">
+              <span class="analytics-label">Success Rate</span>
+              <span id="analytics-success-rate" class="analytics-value">0%</span>
+            </div>
+            <div class="analytics-card">
+              <span class="analytics-label">Total Screen Time</span>
+              <span id="analytics-total-screen-hours" class="analytics-value">0h</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div id="admin-config-tab" class="admin-tab-content hidden">
+          <h3>Alert System Configuration</h3>
+          <div class="admin-form">
+            <div class="form-group">
+              <label for="admin-break-interval">Default Break Interval (min)</label>
+              <input type="number" id="admin-break-interval" min="5" max="120" />
+            </div>
+            <div class="form-group">
+              <label for="admin-break-duration">Default Break Duration (sec)</label>
+              <input type="number" id="admin-break-duration" min="5" max="300" />
+            </div>
+            <div class="form-group">
+              <label for="admin-notification-mode">Default Notification Mode</label>
+              <select id="admin-notification-mode">
+                <option value="light">Light</option>
+                <option value="moderate">Moderate</option>
+                <option value="strict">Strict</option>
+              </select>
+            </div>
+            <button id="admin-config-save-btn" class="primary-btn">Save Config</button>
+            <p id="admin-config-saved" class="success-msg hidden">Config saved!</p>
+          </div>
+        </div>
+
+        <!-- Tips Tab -->
+        <div id="admin-tips-tab" class="admin-tab-content hidden">
+          <h3>Eye Care Tips Management</h3>
+          <div class="admin-add-tip">
+            <div class="form-group">
+              <label for="new-tip-title">Title</label>
+              <input type="text" id="new-tip-title" placeholder="Tip title" />
+            </div>
+            <div class="form-group">
+              <label for="new-tip-desc">Description</label>
+              <textarea id="new-tip-desc" placeholder="Tip description" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="new-tip-category">Category</label>
+              <select id="new-tip-category">
+                <option value="exercise">Exercise</option>
+                <option value="tip">Tip</option>
+                <option value="reminder">Reminder</option>
+              </select>
+            </div>
+            <button id="admin-add-tip-btn" class="primary-btn">Add Tip</button>
+          </div>
+          <div id="admin-tips-list" class="admin-list"></div>
+        </div>
+
+        <button id="admin-back-btn" class="nav-btn bottom-nav">Back to Timer</button>
+      </div>
+    </div>
+
+  </body>
+</html>
