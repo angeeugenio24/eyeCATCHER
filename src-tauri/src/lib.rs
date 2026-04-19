@@ -1,10 +1,13 @@
-use chrono::{Local, NaiveDate, Datelike};
+use chrono::{Datelike, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::webview::Color;
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri_plugin_autostart::{ManagerExt, MacosLauncher};
 
 // ===== Data Structures =====
 
@@ -54,7 +57,6 @@ fn get_data_dir() -> PathBuf {
 }
 
 fn dirs_next() -> Option<PathBuf> {
-    // Use platform-appropriate data directory
     #[cfg(target_os = "linux")]
     {
         std::env::var("XDG_DATA_HOME")
@@ -107,6 +109,14 @@ fn save_sessions(store: &SessionStore) {
     }
 }
 
+fn show_main_window(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+    }
+}
+
 // ===== Tauri Commands =====
 
 #[tauri::command]
@@ -126,7 +136,6 @@ fn stop_timer(state: State<Mutex<AppState>>) {
 
 #[tauri::command]
 fn pause_timer(state: State<Mutex<AppState>>) {
-    // Frontend handles pause logic; this is for backend awareness
     if let Ok(mut s) = state.lock() {
         s.timer_running = false;
     }
@@ -203,7 +212,6 @@ fn get_stats(period: String) -> SessionStats {
 
 #[tauri::command]
 fn send_notification(title: String, body: String, app: AppHandle) {
-    // Use tauri notification plugin
     use tauri_plugin_notification::NotificationExt;
     app.notification()
         .builder()
@@ -215,12 +223,10 @@ fn send_notification(title: String, body: String, app: AppHandle) {
 
 #[tauri::command]
 async fn open_blur_overlay(app: AppHandle) -> Result<(), String> {
-    // Close existing blur window if it's still open
     if let Some(window) = app.get_webview_window("blur-overlay") {
         window.close().ok();
     }
 
-    // Create fullscreen, always-on-top, undecorated, transparent window for the blur overlay
     let _blur_window = WebviewWindowBuilder::new(
         &app,
         "blur-overlay",
@@ -237,13 +243,12 @@ async fn open_blur_overlay(app: AppHandle) -> Result<(), String> {
     .build()
     .map_err(|e| e.to_string())?;
 
-    // Apply platform-specific blur effect to the window
     #[cfg(target_os = "windows")]
     {
         use window_vibrancy::apply_blur;
         apply_blur(&_blur_window, Some((18, 18, 18, 200)))
             .map_err(|e| format!("Failed to apply blur: {:?}", e))
-            .ok(); // Don't fail if blur isn't supported, fall back to semi-transparent bg
+            .ok();
     }
 
     Ok(())
@@ -254,12 +259,36 @@ async fn close_blur_overlay(app: AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("blur-overlay") {
         window.close().map_err(|e| e.to_string())?;
     }
-    // Notify main window that the blur overlay is complete
     app.emit("blur-complete", ()).ok();
     Ok(())
 }
 
+// ===== Autostart Commands =====
+
+#[tauri::command]
+fn get_autostart(app: AppHandle) -> Result<bool, String> {
+    app.autolaunch()
+        .is_enabled()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_autostart(enabled: bool, app: AppHandle) -> Result<(), String> {
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable().map_err(|e| e.to_string())?;
+    } else {
+        manager.disable().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 // ===== Idle Monitor Background Thread =====
+//
+// System-wide idle detection: uses `user-idle` crate to query the OS for
+// the duration since the last input event (mouse/keyboard across the whole
+// desktop, not just this window). Falls back to the in-app activity timer
+// if the OS query fails (e.g. on platforms where it's unsupported).
 
 fn start_idle_monitor(app: AppHandle, state_mutex: std::sync::Arc<Mutex<AppState>>) {
     const IDLE_THRESHOLD_SECS: u64 = 120; // 2 minutes
@@ -270,18 +299,20 @@ fn start_idle_monitor(app: AppHandle, state_mutex: std::sync::Arc<Mutex<AppState
         loop {
             std::thread::sleep(std::time::Duration::from_secs(1));
 
-            let (is_timer_running, idle_secs) = {
+            let system_idle_secs = match user_idle::UserIdle::get_time() {
+                Ok(u) => Some(u.as_seconds()),
+                Err(_) => None,
+            };
+
+            let fallback_idle_secs = {
                 if let Ok(s) = state_mutex.lock() {
-                    (s.timer_running, s.last_activity.elapsed().as_secs())
+                    s.last_activity.elapsed().as_secs()
                 } else {
                     continue;
                 }
             };
 
-            if !is_timer_running {
-                was_idle = false;
-                continue;
-            }
+            let idle_secs = system_idle_secs.unwrap_or(fallback_idle_secs);
 
             if idle_secs >= IDLE_THRESHOLD_SECS && !was_idle {
                 was_idle = true;
@@ -294,6 +325,51 @@ fn start_idle_monitor(app: AppHandle, state_mutex: std::sync::Arc<Mutex<AppState
     });
 }
 
+// ===== System Tray =====
+
+fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let show_item = MenuItem::with_id(app, "show", "Show eyeCATCHER", true, None::<&str>)?;
+    let hide_item = MenuItem::with_id(app, "hide", "Hide to tray", true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
+
+    let icon = app
+        .default_window_icon()
+        .cloned()
+        .ok_or_else(|| tauri::Error::AssetNotFound("default window icon".into()))?;
+
+    TrayIconBuilder::with_id("main-tray")
+        .tooltip("eyeCATCHER")
+        .icon(icon)
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => show_main_window(app),
+            "hide" => {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.hide();
+                }
+            }
+            "quit" => {
+                app.exit(0);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_main_window(tray.app_handle());
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
 // ===== Entry Point =====
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -304,6 +380,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            None,
+        ))
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             start_timer,
@@ -316,9 +396,21 @@ pub fn run() {
             send_notification,
             open_blur_overlay,
             close_blur_overlay,
+            get_autostart,
+            set_autostart,
         ])
+        .on_window_event(|window, event| {
+            // Intercept close on the main window → hide to tray instead of quitting.
+            if window.label() == "main" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+            }
+        })
         .setup(move |app| {
             let handle = app.handle().clone();
+            build_tray(&handle)?;
             start_idle_monitor(handle, monitor_state);
             Ok(())
         })

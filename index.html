@@ -16,26 +16,13 @@
   </head>
 
   <body>
-    <!-- Splash Screen -->
+    <!-- Animated grid background -->
+    <div class="grid-bg" aria-hidden="true"></div>
+    <!-- Accent window frame (inset border matching mockups) -->
+    <div class="window-frame" aria-hidden="true"></div>
+
+    <!-- Splash / Front Page -->
     <div id="splash-screen" class="screen active">
-      <div class="splash-decoration top-right">
-        <svg viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <path d="M-10,30 Q55,10 110,30 T230,30" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.7"/>
-          <path d="M-10,50 Q55,30 110,50 T230,50" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.55"/>
-          <path d="M-10,70 Q55,50 110,70 T230,70" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.4"/>
-          <path d="M-10,90 Q55,70 110,90 T230,90" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.3"/>
-          <path d="M-10,110 Q55,90 110,110 T230,110" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.22"/>
-        </svg>
-      </div>
-      <div class="splash-decoration bottom-left">
-        <svg viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <path d="M-10,30 Q55,50 110,30 T230,30" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.22"/>
-          <path d="M-10,50 Q55,70 110,50 T230,50" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.3"/>
-          <path d="M-10,70 Q55,90 110,70 T230,70" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.4"/>
-          <path d="M-10,90 Q55,110 110,90 T230,90" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.55"/>
-          <path d="M-10,110 Q55,130 110,110 T230,110" stroke="var(--wave-color)" stroke-width="1" fill="none" opacity="0.7"/>
-        </svg>
-      </div>
       <div class="splash-content">
         <div class="splash-logo">
           <h1 class="app-title elegant"><span>eyeCATCHER</span></h1>
@@ -50,52 +37,85 @@
       </div>
     </div>
 
-    <!-- Auth Screen (Login / Register) -->
-    <div id="auth-screen" class="screen">
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
       <div class="auth-content">
-        <h1 id="auth-heading" class="auth-heading">Login</h1>
+        <h1 class="auth-heading">Login</h1>
 
         <div class="auth-form">
-          <div id="auth-name-group" class="form-group">
-            <label for="auth-name">Username</label>
-            <input type="text" id="auth-name" placeholder="Your username" autocomplete="username" />
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" placeholder="Enter email" autocomplete="email" />
           </div>
           <div class="form-group">
-            <label for="auth-email">Email</label>
-            <input type="email" id="auth-email" placeholder="you@example.com" autocomplete="email" />
-          </div>
-          <div class="form-group">
-            <label for="auth-password">Password</label>
-            <input type="password" id="auth-password" placeholder="Min 6 characters" autocomplete="current-password" />
-          </div>
-          <div id="auth-confirm-group" class="form-group hidden">
-            <label for="auth-confirm-password">Confirm Password</label>
-            <input type="password" id="auth-confirm-password" placeholder="Confirm password" autocomplete="new-password" />
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" />
           </div>
 
-          <div id="auth-extra-row" class="auth-extra-row">
+          <div class="auth-extra-row">
             <label class="remember-me">
-              <input type="checkbox" id="auth-remember" />
-              <span>Remember me</span>
+              <input type="checkbox" id="login-remember" />
+              <span>Remember Me</span>
             </label>
-            <span id="auth-forgot" class="link muted">Forgot Password?</span>
+            <span id="login-forgot" class="link muted">Forgot Password?</span>
           </div>
 
-          <div id="auth-error" class="auth-error hidden"></div>
+          <div id="login-error" class="auth-error hidden"></div>
 
-          <button id="auth-signin-btn" class="primary-btn wide">Login</button>
-          <button id="auth-signup-btn" class="primary-btn wide hidden">Sign up</button>
+          <button id="login-submit-btn" class="primary-btn wide">Login</button>
 
-          <p id="auth-toggle-mode" class="auth-toggle muted">
-            don't have an account? <span class="link">sign up</span>
+          <p class="auth-toggle muted">
+            Don't have an account? <span id="login-to-signup" class="link">Sign up</span>
           </p>
         </div>
 
-        <button id="auth-back-btn" class="back-btn" title="Back">
+        <button class="back-btn front-back-btn" data-back-to="splash-screen" title="front page">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 3L5 7l4 4" stroke="var(--bg-primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
+        <span class="front-back-label">front page</span>
+      </div>
+    </div>
+
+    <!-- Sign Up Screen -->
+    <div id="signup-screen" class="screen">
+      <div class="auth-content">
+        <h1 class="auth-heading">Sign up</h1>
+
+        <div class="auth-form">
+          <div class="form-group">
+            <label for="signup-name">Username</label>
+            <input type="text" id="signup-name" placeholder="Username" autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input type="email" id="signup-email" placeholder="Enter email" autocomplete="email" />
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <input type="password" id="signup-password" placeholder="Password" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label for="signup-confirm">Confirm Password</label>
+            <input type="password" id="signup-confirm" placeholder="Confirm Password" autocomplete="new-password" />
+          </div>
+
+          <div id="signup-error" class="auth-error hidden"></div>
+
+          <button id="signup-submit-btn" class="primary-btn wide">Sign up</button>
+
+          <p class="auth-toggle muted">
+            Already have an account? <span id="signup-to-login" class="link">Login</span>
+          </p>
+        </div>
+
+        <button class="back-btn front-back-btn" data-back-to="splash-screen" title="front page">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 3L5 7l4 4" stroke="var(--bg-primary)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <span class="front-back-label">front page</span>
       </div>
     </div>
 
@@ -153,6 +173,8 @@
           </button>
         </div>
 
+        <p id="timer-welcome" class="timer-welcome"></p>
+
         <!-- Idle state: show start button -->
         <div id="timer-idle" class="timer-state">
           <div class="countdown-display">
@@ -175,6 +197,7 @@
               <div id="minute-scroll-list" class="minute-scroll-list"></div>
             </div>
           </div>
+          <p id="timer-idle-indicator" class="timer-idle-indicator hidden">paused — waiting for activity</p>
         </div>
 
         <div class="timer-bottom-actions">
@@ -291,6 +314,11 @@
               <option value="strict">Strict (aggressive)</option>
             </select>
           </div>
+
+          <label class="remember-me settings-toggle">
+            <input type="checkbox" id="settings-autostart" />
+            <span>Launch eyeCATCHER on system startup</span>
+          </label>
 
           <button id="settings-save-btn" class="primary-btn">Save Settings</button>
           <p id="settings-saved-msg" class="success-msg hidden">Settings saved!</p>
