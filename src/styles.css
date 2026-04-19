@@ -35,8 +35,8 @@
   --start-btn-fill: #1a1a1a;
   --input-bg: rgba(255, 255, 255, 0.03);
   --input-border: rgba(184, 149, 74, 0.45);
-  --dot-color: rgba(184, 149, 74, 0.22);
-  --grid-line-color: rgba(184, 149, 74, 0.08);
+  --dot-color: rgba(184, 149, 74, 0.55);
+  --grid-line-color: rgba(184, 149, 74, 0.18);
   --frame-color: rgba(184, 149, 74, 0.55);
 }
 
@@ -58,8 +58,8 @@
   --start-btn-fill: #658eff;
   --input-bg: #ffffff;
   --input-border: rgba(101, 142, 255, 0.5);
-  --dot-color: rgba(101, 142, 255, 0.32);
-  --grid-line-color: rgba(101, 142, 255, 0.12);
+  --dot-color: rgba(101, 142, 255, 0.75);
+  --grid-line-color: rgba(101, 142, 255, 0.22);
   --frame-color: rgba(101, 142, 255, 0.6);
 }
 
@@ -86,42 +86,33 @@ body {
 }
 
 /* ===== Animated infinite scrolling grid background ===== */
-/* Tile size must match the translation distance for seamless loop */
+/* Uses the provided grid PNGs as a 54x54 seamless tile, theme-switched.
+   Translation distance must equal tile pitch (54px) for a seamless loop. */
 .grid-bg {
   position: fixed;
-  /* Extend slightly beyond viewport to hide the translate seam */
-  top: -64px;
-  left: -32px;
-  right: -32px;
-  bottom: -64px;
+  /* Extend beyond viewport by at least one tile pitch so the wrap seam
+     is never visible, no matter how tall/wide the window is. */
+  top: -108px;
+  left: -54px;
+  right: -54px;
+  bottom: -108px;
   pointer-events: none;
   z-index: 0;
-  background-image:
-    radial-gradient(circle, var(--dot-color) 1.2px, transparent 1.8px),
-    linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
-  background-size: 32px 32px, 32px 32px, 32px 32px;
-  background-position: 0 0, 0 0, 0 0;
-  animation: grid-scroll 12s linear infinite;
-  transition: background-image 0.3s ease;
+  background-image: url("./assets/grid/grid-tile-dark.png");
+  background-repeat: repeat;
+  background-size: 54px 54px;
+  background-position: 0 0;
+  animation: grid-scroll 20s linear infinite;
   will-change: transform;
+}
+
+[data-theme="light"] .grid-bg {
+  background-image: url("./assets/grid/grid-tile-light.png");
 }
 
 @keyframes grid-scroll {
   from { transform: translateY(0); }
-  to   { transform: translateY(32px); }
-}
-
-/* ===== Inset accent window frame (matches Fixed Version mockups) ===== */
-.window-frame {
-  position: fixed;
-  top: 6px;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  border: 1px solid var(--frame-color);
-  pointer-events: none;
-  z-index: 1;
+  to   { transform: translateY(54px); }
 }
 
 .screen {
