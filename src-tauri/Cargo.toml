@@ -1,0 +1,23 @@
+[package]
+name = "eyecatcher"
+version = "0.1.0"
+description = "eyeCATCHER - a persistent 20-20-20 eye tracker"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "eyecatcher_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+window-vibrancy = "0.5"
+tauri-plugin-opener = "2"
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+
