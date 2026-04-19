@@ -48,6 +48,7 @@ let currentStatsPeriod = "today";
 let currentUserId: string | null = null;
 let currentProfile: Profile | null = null;
 let screenTimeAccumulator = 0;
+let isSystemIdle = false;
 let adminClickCount = 0;
 let adminClickTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -56,6 +57,9 @@ let TIMER_DURATION_SECONDS = 20 * 60;
 let BREAK_DURATION_SECONDS = 20;
 let WARNING_BEFORE_SECONDS = 2 * 60;
 let NOTIFICATION_MODE = "moderate";
+
+// ===== Storage Keys =====
+const REMEMBER_ME_KEY = "eyecatcher-remember-me";
 
 // ===== DOM Elements =====
 function getEl(id: string): HTMLElement {
@@ -74,79 +78,94 @@ function showScreen(screenId: string): void {
   getEl(screenId).classList.add("active");
 }
 
-function showAuthError(msg: string): void {
-  const el = getElSafe("auth-error");
+function showError(id: string, msg: string): void {
+  const el = getElSafe(id);
   if (el) { el.textContent = msg; el.classList.remove("hidden"); }
 }
 
-function hideAuthError(): void {
-  const el = getElSafe("auth-error");
+function hideError(id: string): void {
+  const el = getElSafe(id);
   if (el) { el.textContent = ""; el.classList.add("hidden"); }
-}
-
-function showProfileError(msg: string): void {
-  const el = getElSafe("profile-error");
-  if (el) { el.textContent = msg; el.classList.remove("hidden"); }
 }
 
 // ===== Auth Flow =====
 async function handleSignUp(): Promise<void> {
-  hideAuthError();
-  const email = (getEl("auth-email") as HTMLInputElement).value.trim();
-  const password = (getEl("auth-password") as HTMLInputElement).value;
-  const confirmPassword = (getEl("auth-confirm-password") as HTMLInputElement).value;
-  const name = (getEl("auth-name") as HTMLInputElement).value.trim();
+  hideError("signup-error");
+  const email = (getEl("signup-email") as HTMLInputElement).value.trim();
+  const password = (getEl("signup-password") as HTMLInputElement).value;
+  const confirmPassword = (getEl("signup-confirm") as HTMLInputElement).value;
+  const name = (getEl("signup-name") as HTMLInputElement).value.trim();
 
   if (!email || !password || !name || !confirmPassword) {
-    showAuthError("Please fill in all fields.");
+    showError("signup-error", "Please fill in all fields.");
     return;
   }
   if (password.length < 6) {
-    showAuthError("Password must be at least 6 characters.");
+    showError("signup-error", "Password must be at least 6 characters.");
     return;
   }
   if (password !== confirmPassword) {
-    showAuthError("Passwords do not match.");
+    showError("signup-error", "Passwords do not match.");
     return;
   }
 
   const { user, error } = await signUp(email, password, name);
-  if (error) { showAuthError(error); return; }
-  if (!user) { showAuthError("Sign up failed. Please try again."); return; }
+  if (error) { showError("signup-error", error); return; }
+  if (!user) { showError("signup-error", "Sign up failed. Please try again."); return; }
 
+  // New sign-ups default to remember (can sign out from settings)
+  localStorage.setItem(REMEMBER_ME_KEY, "true");
   currentUserId = user.id;
   currentProfile = await getProfile(user.id);
+  startScreenTimeTracking();
   showScreen("profile-setup-screen");
 }
 
 async function handleSignIn(): Promise<void> {
-  hideAuthError();
-  const email = (getEl("auth-email") as HTMLInputElement).value.trim();
-  const password = (getEl("auth-password") as HTMLInputElement).value;
+  hideError("login-error");
+  const email = (getEl("login-email") as HTMLInputElement).value.trim();
+  const password = (getEl("login-password") as HTMLInputElement).value;
+  const remember = (getEl("login-remember") as HTMLInputElement).checked;
 
   if (!email || !password) {
-    showAuthError("Please enter email and password.");
+    showError("login-error", "Please enter email and password.");
     return;
   }
 
   const { user, error } = await signIn(email, password);
-  if (error) { showAuthError(error); return; }
-  if (!user) { showAuthError("Sign in failed."); return; }
+  if (error) { showError("login-error", error); return; }
+  if (!user) { showError("login-error", "Sign in failed."); return; }
 
+  localStorage.setItem(REMEMBER_ME_KEY, remember ? "true" : "false");
   currentUserId = user.id;
   currentProfile = await getProfile(user.id);
   await loadUserSettings();
+  updateTimerWelcome();
+  startScreenTimeTracking();
   showScreen("timer-screen");
 }
 
 async function handleSignOut(): Promise<void> {
-  stopScreenTimeTracking();
+  await stopScreenTimeTracking();
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  await signOut();
+  try {
+    await signOut();
+  } catch (e) {
+    console.error("signOut failed:", e);
+  }
+  // Explicitly clear remember flag so next startup does not auto-login
+  localStorage.setItem(REMEMBER_ME_KEY, "false");
   currentUserId = null;
   currentProfile = null;
   resetTimerUI();
-  showScreen("auth-screen");
+  showScreen("splash-screen");
+}
+
+function updateTimerWelcome(): void {
+  const el = getElSafe("timer-welcome");
+  if (!el) return;
+  const name = currentProfile?.display_name?.trim();
+  el.textContent = name ? `Welcome, ${name}` : "";
 }
 
 // ===== Profile Setup =====
@@ -161,9 +180,10 @@ async function handleProfileSave(): Promise<void> {
     daily_screen_hours: screenHours,
     work_type: workType,
   });
-  if (!ok) { showProfileError("Failed to save profile."); return; }
+  if (!ok) { showError("profile-error", "Failed to save profile."); return; }
   currentProfile = await getProfile(currentUserId);
   await loadUserSettings();
+  updateTimerWelcome();
   showScreen("timer-screen");
 }
 
@@ -177,6 +197,13 @@ async function loadSettingsUI(): Promise<void> {
   (getEl("settings-break-interval") as HTMLInputElement).value = String(currentProfile.break_interval_minutes);
   (getEl("settings-break-duration") as HTMLInputElement).value = String(currentProfile.break_duration_seconds);
   (getEl("settings-notification-mode") as HTMLSelectElement).value = currentProfile.notification_mode;
+
+  try {
+    const enabled = await invoke<boolean>("get_autostart");
+    (getEl("settings-autostart") as HTMLInputElement).checked = !!enabled;
+  } catch (e) {
+    console.error("get_autostart failed:", e);
+  }
 }
 
 async function handleSettingsSave(): Promise<void> {
@@ -188,6 +215,7 @@ async function handleSettingsSave(): Promise<void> {
   const breakInterval = parseInt((getEl("settings-break-interval") as HTMLInputElement).value) || 20;
   const breakDuration = parseInt((getEl("settings-break-duration") as HTMLInputElement).value) || 20;
   const notifMode = (getEl("settings-notification-mode") as HTMLSelectElement).value;
+  const autostart = (getEl("settings-autostart") as HTMLInputElement).checked;
 
   await updateProfile(currentUserId, {
     display_name: name,
@@ -200,6 +228,13 @@ async function handleSettingsSave(): Promise<void> {
   });
   currentProfile = await getProfile(currentUserId);
   await loadUserSettings();
+  updateTimerWelcome();
+
+  try {
+    await invoke("set_autostart", { enabled: autostart });
+  } catch (e) {
+    console.error("set_autostart failed:", e);
+  }
 
   const msg = getElSafe("settings-saved-msg");
   if (msg) {
@@ -228,15 +263,17 @@ function getWarningTime(): number {
 }
 
 // ===== Screen Time Monitoring =====
+// Runs whenever the app is open and the user is logged in.
+// Pauses while the user is idle (system-wide idle detection).
 function startScreenTimeTracking(): void {
+  if (screenTimeInterval) return;
   screenTimeAccumulator = 0;
   screenTimeInterval = setInterval(() => {
-    if (!timerState.is_paused) {
-      screenTimeAccumulator++;
-      if (screenTimeAccumulator % 60 === 0 && currentUserId) {
-        updateScreenTime(currentUserId, 60, false);
-        screenTimeAccumulator = 0;
-      }
+    if (isSystemIdle) return;
+    screenTimeAccumulator++;
+    if (screenTimeAccumulator % 60 === 0 && currentUserId) {
+      updateScreenTime(currentUserId, 60, false);
+      screenTimeAccumulator = 0;
     }
   }, 1000);
 }
@@ -307,12 +344,18 @@ function startTimer(): void {
       checkTimerMilestones();
     }
   }, 1000);
-
-  startScreenTimeTracking();
 }
 
 function updateTimerDisplay(): void {
   renderMinuteScroll();
+  const indicator = getElSafe("timer-idle-indicator");
+  if (indicator) {
+    if (timerState.is_running && timerState.is_paused) {
+      indicator.classList.remove("hidden");
+    } else {
+      indicator.classList.add("hidden");
+    }
+  }
 }
 
 function checkTimerMilestones(): void {
@@ -336,13 +379,11 @@ function showAlertNotification(): void {
 
 async function triggerBlurOverlay(): Promise<void> {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  await stopScreenTimeTracking();
 
   if (currentUserId) {
     await updateScreenTime(currentUserId, 0, true);
   }
 
-  // Get a random tip and store it for the blur overlay to use
   const tip = await getRandomTip();
   if (tip) {
     localStorage.setItem("eyecatcher_break_tip_title", tip.title);
@@ -369,7 +410,6 @@ async function onBlurComplete(): Promise<void> {
 
 async function terminateTimer(): Promise<void> {
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-  stopScreenTimeTracking();
   timerState.is_running = false;
 
   if (currentUserId) {
@@ -388,6 +428,9 @@ function resetTimerUI(): void {
 
   timerState = { is_running: false, is_paused: false, elapsed_seconds: 0, pause_count: 0 };
   hasWarningShown = false;
+
+  const indicator = getElSafe("timer-idle-indicator");
+  if (indicator) indicator.classList.add("hidden");
 
   const countdownEl = getElSafe("countdown-number");
   if (countdownEl && currentProfile) {
@@ -614,12 +657,14 @@ function showAdminTab(tabId: string): void {
 // ===== Event Listeners from Rust Backend =====
 async function setupBackendListeners(): Promise<void> {
   await listen("user-idle", () => {
+    isSystemIdle = true;
     if (timerState.is_running && !timerState.is_paused) {
       pauseTimer();
     }
   });
 
   await listen("user-active", () => {
+    isSystemIdle = false;
     if (timerState.is_running && timerState.is_paused) {
       resumeTimer();
     }
@@ -632,54 +677,47 @@ async function setupBackendListeners(): Promise<void> {
 
 // ===== Initialization =====
 window.addEventListener("DOMContentLoaded", async () => {
-  // Register splash screen auth buttons before any async calls
-  // so they always work even if Supabase is unreachable
-  function setAuthMode(mode: "signin" | "signup"): void {
-    const nameGroup = getEl("auth-name-group");
-    const confirmGroup = getEl("auth-confirm-group");
-    const signUpBtn = getEl("auth-signup-btn");
-    const signInBtn = getEl("auth-signin-btn");
-    const heading = getEl("auth-heading");
-    const toggleText = getEl("auth-toggle-mode");
-    const extraRow = getEl("auth-extra-row");
-    if (mode === "signin") {
-      nameGroup.classList.add("hidden");
-      confirmGroup.classList.add("hidden");
-      signUpBtn.classList.add("hidden");
-      signInBtn.classList.remove("hidden");
-      extraRow.classList.remove("hidden");
-      heading.textContent = "Login";
-      toggleText.innerHTML = "don't have an account? <span class=\"link\">sign up</span>";
-    } else {
-      nameGroup.classList.remove("hidden");
-      confirmGroup.classList.remove("hidden");
-      signUpBtn.classList.remove("hidden");
-      signInBtn.classList.add("hidden");
-      extraRow.classList.add("hidden");
-      heading.textContent = "Sign up";
-      toggleText.innerHTML = "already have an account? <span class=\"link\">login</span>";
-    }
-    hideAuthError();
-  }
-
+  // --- Navigation between splash / login / signup ---
   getEl("splash-login-btn").addEventListener("click", () => {
-    setAuthMode("signin");
-    showScreen("auth-screen");
+    hideError("login-error");
+    showScreen("login-screen");
   });
-
   getEl("splash-signup-btn").addEventListener("click", () => {
-    setAuthMode("signup");
-    showScreen("auth-screen");
+    hideError("signup-error");
+    showScreen("signup-screen");
+  });
+  getEl("login-to-signup").addEventListener("click", () => {
+    hideError("signup-error");
+    showScreen("signup-screen");
+  });
+  getEl("signup-to-login").addEventListener("click", () => {
+    hideError("login-error");
+    showScreen("login-screen");
+  });
+  document.querySelectorAll(".front-back-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-back-to") || "splash-screen";
+      hideError("login-error");
+      hideError("signup-error");
+      showScreen(target);
+    });
   });
 
-  getEl("auth-back-btn").addEventListener("click", () => {
-    hideAuthError();
-    showScreen("splash-screen");
+  // "Forgot password" placeholder — feature intentionally not implemented yet.
+  getElSafe("login-forgot")?.addEventListener("click", () => {
+    showError("login-error", "Forgot password is coming soon.");
   });
 
+  // --- Check persisted session, honoring Remember Me ---
   let user = null;
   try {
-    user = await getCurrentUser();
+    const remember = localStorage.getItem(REMEMBER_ME_KEY) !== "false";
+    if (!remember) {
+      // User previously opted out of persistence — clear any stale session.
+      try { await signOut(); } catch {}
+    } else {
+      user = await getCurrentUser();
+    }
   } catch (e) {
     console.error("Failed to check auth status:", e);
   }
@@ -693,19 +731,24 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     if (currentProfile) {
       await loadUserSettings();
+      updateTimerWelcome();
+      startScreenTimeTracking();
       showScreen("timer-screen");
     } else {
+      startScreenTimeTracking();
       showScreen("profile-setup-screen");
     }
   }
 
-  getEl("auth-signup-btn").addEventListener("click", handleSignUp);
-  getEl("auth-signin-btn").addEventListener("click", handleSignIn);
+  // --- Auth form submissions ---
+  getEl("login-submit-btn").addEventListener("click", handleSignIn);
+  getEl("signup-submit-btn").addEventListener("click", handleSignUp);
 
-  getEl("auth-toggle-mode").addEventListener("click", () => {
-    const nameGroup = getEl("auth-name-group");
-    const isSignUp = !nameGroup.classList.contains("hidden");
-    setAuthMode(isSignUp ? "signin" : "signup");
+  getEl("login-password").addEventListener("keydown", (e) => {
+    if ((e as KeyboardEvent).key === "Enter") handleSignIn();
+  });
+  getEl("signup-confirm").addEventListener("keydown", (e) => {
+    if ((e as KeyboardEvent).key === "Enter") handleSignUp();
   });
 
   getEl("profile-save-btn").addEventListener("click", handleProfileSave);
@@ -767,6 +810,8 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   setupBackendListeners().catch((e) => console.error("Backend listeners failed:", e));
 
+  // Forward local UI activity to Rust so the system-idle monitor stays responsive
+  // even when only the app window has focus.
   const reportActivity = () => { invoke("report_activity").catch(() => {}); };
   document.addEventListener("mousemove", reportActivity);
   document.addEventListener("keydown", reportActivity);
@@ -780,6 +825,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     } else if (session?.user) {
       currentUserId = session.user.id;
       currentProfile = await getProfile(session.user.id);
+      updateTimerWelcome();
     }
   });
 });
