@@ -86,30 +86,33 @@ body {
 }
 
 /* ===== Animated infinite scrolling grid background ===== */
-/* Tile size must match the translation distance for seamless loop */
+/* Uses the provided grid PNGs as a 54x54 seamless tile, theme-switched.
+   Translation distance must equal tile pitch (54px) for a seamless loop. */
 .grid-bg {
   position: fixed;
-  /* Extend slightly beyond viewport to hide the translate seam */
-  top: -160px;
-  left: -80px;
-  right: -80px;
-  bottom: -160px;
+  /* Extend beyond viewport by at least one tile pitch so the wrap seam
+     is never visible, no matter how tall/wide the window is. */
+  top: -108px;
+  left: -54px;
+  right: -54px;
+  bottom: -108px;
   pointer-events: none;
   z-index: 0;
-  background-image:
-    radial-gradient(circle, var(--dot-color) 2.2px, transparent 2.6px),
-    linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
-  background-size: 80px 80px, 80px 80px, 80px 80px;
-  background-position: 0 0, 0 0, 0 0;
-  animation: grid-scroll 24s linear infinite;
-  transition: background-image 0.3s ease;
+  background-image: url("./assets/grid/grid-tile-dark.png");
+  background-repeat: repeat;
+  background-size: 54px 54px;
+  background-position: 0 0;
+  animation: grid-scroll 20s linear infinite;
   will-change: transform;
+}
+
+[data-theme="light"] .grid-bg {
+  background-image: url("./assets/grid/grid-tile-light.png");
 }
 
 @keyframes grid-scroll {
   from { transform: translateY(0); }
-  to   { transform: translateY(80px); }
+  to   { transform: translateY(54px); }
 }
 
 .screen {
