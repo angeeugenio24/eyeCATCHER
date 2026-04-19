@@ -86,23 +86,24 @@ body {
 }
 
 /* ===== Animated infinite scrolling grid background ===== */
-/* Uses the provided grid PNGs as a 54x54 seamless tile, theme-switched.
-   Translation distance must equal tile pitch (54px) for a seamless loop. */
+/* Uses the provided grid PNGs downscaled to a 36px seamless tile,
+   theme-switched. Translation distance must equal the rendered tile
+   size for a seamless downward loop. */
 .grid-bg {
   position: fixed;
   /* Extend beyond viewport by at least one tile pitch so the wrap seam
      is never visible, no matter how tall/wide the window is. */
-  top: -108px;
-  left: -54px;
-  right: -54px;
-  bottom: -108px;
+  top: -72px;
+  left: -36px;
+  right: -36px;
+  bottom: -72px;
   pointer-events: none;
   z-index: 0;
   background-image: url("./assets/grid/grid-tile-dark.png");
   background-repeat: repeat;
-  background-size: 54px 54px;
+  background-size: 36px 36px;
   background-position: 0 0;
-  animation: grid-scroll 20s linear infinite;
+  animation: grid-scroll 18s linear infinite;
   will-change: transform;
 }
 
@@ -112,7 +113,7 @@ body {
 
 @keyframes grid-scroll {
   from { transform: translateY(0); }
-  to   { transform: translateY(54px); }
+  to   { transform: translateY(36px); }
 }
 
 .screen {
@@ -811,6 +812,15 @@ body {
   padding: 30px 20px;
   margin: 0 auto;
   overflow-y: auto;
+  /* Hide the scrollbar chrome while keeping the section scrollable */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .settings-title {
