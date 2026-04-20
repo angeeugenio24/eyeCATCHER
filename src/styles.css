@@ -15,10 +15,14 @@
   --font-body: 'Courier Prime', 'Courier New', monospace;
   --danger: #c0392b;
   --danger-light: #e74c3c;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
 }
 
 /* Dark theme (default) */
 :root, [data-theme="dark"] {
+  --app-title-color: #c29a6c;
   --bg-primary: #0a0a0a;
   --bg-secondary: #141414;
   --bg-card: #141414;
@@ -42,6 +46,7 @@
 
 /* Light theme */
 [data-theme="light"] {
+  --app-title-color: #658eff;
   --bg-primary: #ffffff;
   --bg-secondary: #fafafa;
   --bg-card: #ffffff;
@@ -173,7 +178,7 @@ body {
   font-size: 3rem;
   font-weight: 400;
   letter-spacing: 2px;
-  color: var(--text-primary);
+  color: var(--app-title-color);
   margin-bottom: 8px;
 }
 
@@ -189,7 +194,7 @@ body {
   font-style: normal;
   font-size: 2.8rem;
   letter-spacing: 1px;
-  color: var(--text-primary);
+  color: var(--app-title-color);
   margin: 0;
   display: inline-block;
   padding: 4px 4px 10px;
